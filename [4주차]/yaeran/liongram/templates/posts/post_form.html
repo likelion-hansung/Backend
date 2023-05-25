@@ -15,10 +15,11 @@
     </div>
     <div>
         <label for="contentID">내용</label>
-        <textarea name="content" id="contentID" cols="30" rows="10"></textarea>
+        <textarea name="content" id="contentID" cols="30" rows="10">
             {% if post %}
                 {{post.content}}
             {% endif %}
+        </textarea>
     </div>
     <div>
         <input type="submit">

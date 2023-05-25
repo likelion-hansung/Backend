@@ -2,11 +2,14 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, JsonResponse
 from django.views.generic.list import ListView
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 
 from .models import Post
+import accounts
+from .forms import PostBaseForm, PostCreateForm, PostDetailForm
 
 def index(request):
-    post_list = Post.objects.all().order_by('-created_at')
+    post_list = Post.objects.all() #.order_by('-created_at')
     context = {
         'post_list': post_list
     }
@@ -21,15 +24,34 @@ def post_list_view(request):
     return render(request, 'posts/post_list.html', context)
     
 def post_detail_view(request, id):
-    post = Post.objects.get(id=id)
-    context = {
-        'post': post
-    }
-    return render(request, 'posts/post_detail.html', context)
+    # if request.method == 'GET':
+    if request.user.is_authenticated:
+        try:
+            post = Post.objects.get(id=id)
+        except Post.DoseNotExist:
+            return redirect('index')
+        context = {
+            'post' : post
+        }
+        return render(request, 'posts/post_detail.html', context)
+    else:
+        return redirect('/accounts/login')
+    # if request.method == 'GET':
+    #     # post = Post.objects.get(id=id)
+    #     if not request.user.is_authenticated:
+    #         return redirect('/accounts/login/')
+    #     else:
+    #         post = Post.objects.get(id=id)
+    #         context = {
+    #             'post': post
+    #             # 'form': PostDetailForm(),
+    #         }
+    #         return render(request, 'posts/post_detail.html', context)
 
+@login_required
 def post_create_view(request):
     if request.method == 'GET':
-        return render(request, 'posts/post_form.html')
+        return render(request, 'posts/post_form.html', {'form': PostBaseForm()})
     else:
         image = request.FILES.get('image')
         content = request.POST.get('content')
@@ -40,6 +62,24 @@ def post_create_view(request):
         )
         return redirect('index')
 
+def post_create_form_view(request):
+    if request.method == 'GET':
+        form = PostCreateForm()
+        context = {'form': form}
+        return render(request, 'posts/post_form2.html', context)
+    else:
+        form = PostBaseForm(request.POST, request.FILES)
+
+        if form.is_valid():
+            Post.objects.create(
+                image = form.cleaned_data['image'],
+                content = form.cleaned_data['content'],
+                writer = request.user
+            )
+        else:
+            return redirect('posts:post-create')
+        return redirect('index')
+
 def post_update_view(request, id):
     post = Post.objects.get(id=id)
     if request.method == 'GET':
@@ -48,7 +88,7 @@ def post_update_view(request, id):
         }
         return render(request, 'posts/post_form.html', context)
     elif request.method == 'POST':
-        image = request.FILES.get('image')
+        new_image = request.FILES.get('image')
         content = request.POST.get('content')
         # Post.objects.create(
         if new_image:
@@ -64,7 +104,8 @@ def post_delete_view(request, id):
     post = get_object_or_404(Post, id=id)
     if request.method == 'GET':
         context = {
-            'post': post
+            # 'post': post
+            'accounts':accounts
         }
         return render(request, 'posts/post_confirm_delete.html', context)
     else:
